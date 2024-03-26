@@ -1,0 +1,108 @@
+import fitz  # PyMuPDF
+import os
+from deep_translator import GoogleTranslator
+from multiprocessing import Pool
+import time
+import re
+
+# Function to scrape text from PDF
+def scrape_pdf(pdf_path, max_pages=None):
+    try:
+        # Open the PDF file
+        doc = fitz.open(pdf_path)
+        num_pages = min(len(doc), max_pages) if max_pages is not None else len(doc)
+        text = ""
+
+        # Iterate through each page
+        for page_num in range(num_pages):
+            page = doc.load_page(page_num)
+            page_text = page.get_text()
+            text += page_text + "\n\n#####\n\n"  # Add separator between pages
+
+        return text
+
+    except Exception as e:
+        print("Error in scrape_pdf:", e)
+        return None
+
+# Function to split text into sentences
+def split_into_sentences(text):
+    sentences = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?|\!)\s', text)
+    return sentences
+
+# Function to translate sentence to English using Deep Translator
+def translate_sentence(sentence):
+    try:
+        if sentence is None:
+            return None
+
+        print("Translating sentence:", sentence)  # Debugging: Print the sentence being translated
+
+        translated_sentence = GoogleTranslator(source='auto', target='en').translate(sentence)
+        return translated_sentence
+
+    except Exception as e:
+        print("Error in translate_sentence:", e)
+        return None
+
+# Function to translate text to English using multiprocessing
+def translate_to_english(text):
+    try:
+        if text is None:
+            print("Input text is None.")
+            return None
+
+        sentences = split_into_sentences(text)
+
+        with Pool() as pool:
+            translated_sentences = pool.map(translate_sentence, sentences)
+
+        translated_text = "\n".join(translated_sentences)
+
+        return translated_text
+
+    except Exception as e:
+        print("Error in translate_to_english:", e)
+        return None
+
+# Function to save text to file
+def save_to_file(text, output_path):
+    try:
+        with open(output_path, 'w', encoding='utf-8') as file:
+            file.write(text)
+        print("Text saved to:", output_path)
+
+    except Exception as e:
+        print("Error in save_to_file:", e)
+
+# Main function
+def main():
+    try:
+        # Input PDF path
+        pdf_path = input("Enter the path to the PDF file: ").strip()
+        max_pages = int(input("Enter the number of pages to translate: ").strip())
+
+        # Create directory for output files
+        output_dir = os.path.dirname(pdf_path)
+        output_file = os.path.join(output_dir, "output.txt")
+        translated_file = os.path.join(output_dir, "translated.txt")
+
+        # Scrape text from PDF
+        text = scrape_pdf(pdf_path, max_pages)
+
+        # Save scraped text to output file
+        if text:
+            save_to_file(text, output_file)
+
+            # Translate text to English
+            translated_text = translate_to_english(text)
+
+            # Save translated text to file
+            if translated_text:
+                save_to_file(translated_text, translated_file)
+
+    except Exception as e:
+        print("Error in main:", e)
+
+if __name__ == "__main__":
+    main()
